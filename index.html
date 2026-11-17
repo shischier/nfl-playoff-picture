@@ -1,0 +1,464 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>NFL Playoff Picture</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700;800&family=Barlow:wght@400;500;600&display=swap">
+<style>
+/* Layout: scoreboard header, then AFC | NFC side by side (seeds → wild-card bracket → hunt), division tables below. */
+:root {
+  --bg: #eef1ef;
+  --surface: #ffffff;
+  --surface-2: #f5f7f6;
+  --line: #d9dfdc;
+  --fg: #142019;
+  --muted: #5d6b64;
+  --turf: #1f6b45;
+  --turf-soft: #dcefe4;
+  --afc: #c8102e;
+  --afc-soft: #fbe5e8;
+  --nfc: #0b4fa8;
+  --nfc-soft: #e2ecfa;
+  --good: #1f7a4a;
+  --bad: #a3323a;
+  --font-display: "Barlow Condensed", "Arial Narrow", system-ui, sans-serif;
+  --font-body: "Barlow", system-ui, -apple-system, "Segoe UI", sans-serif;
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0d1411; --surface: #141d19; --surface-2: #19241f; --line: #26332d;
+    --fg: #e8eeea; --muted: #94a39b; --turf: #4fbf85; --turf-soft: #183326;
+    --afc: #ff5a6e; --afc-soft: #3a1a20; --nfc: #6aa6ff; --nfc-soft: #16263f;
+    --good: #5fd394; --bad: #ff7c85; color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0d1411; --surface: #141d19; --surface-2: #19241f; --line: #26332d;
+  --fg: #e8eeea; --muted: #94a39b; --turf: #4fbf85; --turf-soft: #183326;
+  --afc: #ff5a6e; --afc-soft: #3a1a20; --nfc: #6aa6ff; --nfc-soft: #16263f;
+  --good: #5fd394; --bad: #ff7c85; color-scheme: dark;
+}
+
+* { box-sizing: border-box; }
+html { -webkit-text-size-adjust: 100%; }
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--fg);
+  font: 15px/1.45 var(--font-body);
+  font-variant-numeric: tabular-nums;
+}
+img { max-width: 100%; }
+[hidden] { display: none !important; }
+
+.wrap {
+  max-width: 1240px;
+  margin: 0 auto;
+  padding-block: 28px 56px;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+  display: grid;
+  gap: 28px;
+}
+
+/* Header */
+header.top {
+  display: flex; flex-wrap: wrap; align-items: end; justify-content: space-between; gap: 16px;
+  border-bottom: 3px solid var(--fg); padding-bottom: 14px;
+}
+.brand { display: grid; gap: 2px; }
+.eyebrow {
+  font: 600 13px/1 var(--font-display); letter-spacing: .14em; text-transform: uppercase; color: var(--turf);
+}
+h1 {
+  margin: 0; font: 800 clamp(34px, 6vw, 56px)/.95 var(--font-display); letter-spacing: -.01em; text-transform: uppercase;
+  text-wrap: balance;
+}
+.status { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; color: var(--muted); font-size: 14px; }
+.week-pill {
+  font: 700 14px/1 var(--font-display); letter-spacing: .06em; text-transform: uppercase;
+  background: var(--fg); color: var(--bg); padding: 7px 10px; border-radius: 4px;
+}
+button.refresh {
+  font: 600 14px/1 var(--font-display); letter-spacing: .06em; text-transform: uppercase;
+  border: 1.5px solid var(--fg); background: transparent; color: var(--fg);
+  padding: 7px 12px; border-radius: 4px; cursor: pointer;
+}
+button.refresh:hover { background: var(--fg); color: var(--bg); }
+button.refresh:focus-visible, a:focus-visible { outline: 3px solid var(--turf); outline-offset: 2px; }
+button.refresh[disabled] { opacity: .5; cursor: progress; }
+
+/* Conference columns */
+.confs { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 520px), 1fr)); gap: 28px; }
+.conf { display: grid; gap: 18px; align-content: start; min-width: 0; }
+.conf[data-conf="AFC"] { --c: var(--afc); --c-soft: var(--afc-soft); }
+.conf[data-conf="NFC"] { --c: var(--nfc); --c-soft: var(--nfc-soft); }
+.conf-head { display: flex; align-items: baseline; gap: 12px; border-bottom: 2px solid var(--c); padding-bottom: 6px; }
+.conf-head h2 { margin: 0; font: 800 40px/1 var(--font-display); color: var(--c); letter-spacing: .02em; }
+.conf-head span { color: var(--muted); font: 500 15px/1.2 var(--font-display); letter-spacing: .04em; text-transform: uppercase; }
+
+h3 {
+  margin: 0 0 8px; font: 700 14px/1 var(--font-display); letter-spacing: .12em; text-transform: uppercase; color: var(--muted);
+}
+
+/* Seed list */
+.seeds { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
+.seed {
+  display: grid; grid-template-columns: 40px 34px minmax(0, 1fr) auto; align-items: center; gap: 10px;
+  background: var(--surface); border: 1px solid var(--line); border-radius: 6px; padding: 8px 12px 8px 0;
+  overflow: hidden;
+}
+.seed .num {
+  align-self: stretch; display: grid; place-items: center;
+  font: 800 24px/1 var(--font-display); color: var(--c); background: var(--c-soft);
+  margin: -8px 0;
+}
+.seed.wc .num { color: var(--muted); background: var(--surface-2); }
+.logo { width: 34px; height: 34px; object-fit: contain; }
+.tname { min-width: 0; display: grid; }
+.tname b { font: 700 19px/1.1 var(--font-display); letter-spacing: .01em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.tname small { color: var(--muted); font-size: 12.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.rec { text-align: right; display: grid; justify-items: end; gap: 3px; }
+.rec b { font: 700 20px/1 var(--font-display); }
+.tags { display: flex; gap: 4px; flex-wrap: wrap; justify-content: end; }
+.tag {
+  font: 700 11px/1 var(--font-display); letter-spacing: .08em; text-transform: uppercase;
+  padding: 3px 6px; border-radius: 3px; border: 1px solid var(--line); color: var(--muted); white-space: nowrap;
+}
+.tag.div { border-color: var(--c); color: var(--c); }
+.tag.bye { background: var(--turf); border-color: var(--turf); color: var(--bg); }
+.tag.clinch { background: var(--fg); border-color: var(--fg); color: var(--bg); }
+.tag.elim { border-color: var(--bad); color: var(--bad); }
+
+/* Wild-card bracket */
+.bracket { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+.game {
+  background: var(--surface); border: 1px solid var(--line); border-radius: 6px; padding: 8px 10px; display: grid; gap: 6px; min-width: 0;
+}
+.game .row { display: grid; grid-template-columns: 18px 24px minmax(0, 1fr); align-items: center; gap: 6px; }
+.game .row span:first-child { font: 700 14px/1 var(--font-display); color: var(--muted); text-align: right; }
+.game .row img { width: 24px; height: 24px; object-fit: contain; }
+.game .row b { font: 700 16px/1 var(--font-display); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.game .vs { font: 600 11px/1 var(--font-display); letter-spacing: .1em; color: var(--muted); text-transform: uppercase; padding-left: 24px; }
+.game .ab { display: none; }
+.byebox {
+  margin-top: 8px; display: flex; align-items: center; gap: 8px; color: var(--muted); font-size: 13.5px;
+}
+.byebox img { width: 22px; height: 22px; }
+
+/* Hunt */
+.hunt { width: 100%; border-collapse: collapse; font-size: 14px; }
+.hunt th { text-align: left; font: 600 12px/1 var(--font-display); letter-spacing: .08em; text-transform: uppercase; color: var(--muted); padding: 0 6px 6px; }
+.hunt td { padding: 6px; border-top: 1px solid var(--line); vertical-align: middle; }
+.hunt td.n, .hunt th.n { text-align: right; }
+.hunt .team { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.hunt .team img { width: 22px; height: 22px; object-fit: contain; flex: none; }
+.hunt .team b { font: 600 16px/1.1 var(--font-display); }
+.hunt tr.out td { color: var(--muted); }
+.hunt tr.out .team b { text-decoration: line-through; text-decoration-color: var(--bad); }
+.gb { font: 700 15px/1 var(--font-display); }
+.pos { color: var(--good); }
+.neg { color: var(--bad); }
+.scroll { overflow-x: auto; }
+
+/* Divisions */
+.divs-section { display: grid; gap: 14px; }
+.divs-section > h2 { margin: 0; font: 800 28px/1 var(--font-display); text-transform: uppercase; letter-spacing: .02em; border-bottom: 3px solid var(--fg); padding-bottom: 8px; }
+.divs { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 270px), 1fr)); gap: 14px; }
+.div-card { background: var(--surface); border: 1px solid var(--line); border-radius: 6px; padding: 12px; min-width: 0; }
+.div-card[data-conf="AFC"] { --c: var(--afc); }
+.div-card[data-conf="NFC"] { --c: var(--nfc); }
+.div-card h4 { margin: 0 0 8px; font: 700 17px/1 var(--font-display); letter-spacing: .06em; text-transform: uppercase; color: var(--c); }
+.div-card table { width: 100%; border-collapse: collapse; font-size: 13.5px; }
+.div-card th { font: 600 11px/1 var(--font-display); letter-spacing: .08em; text-transform: uppercase; color: var(--muted); text-align: right; padding: 0 4px 6px; }
+.div-card th:first-child { text-align: left; }
+.div-card .scroll { margin: 0 -4px; }
+.div-card td { padding: 5px 4px; border-top: 1px solid var(--line); text-align: right; white-space: nowrap; }
+.div-card td:first-child { text-align: left; }
+.div-card .team { display: flex; align-items: center; gap: 6px; }
+.div-card .team img { width: 20px; height: 20px; object-fit: contain; }
+.div-card .team b { font: 600 15px/1 var(--font-display); }
+.div-card .sd { display: inline-block; min-width: 18px; font: 700 12px/1 var(--font-display); color: var(--c); }
+
+/* Legend, footer, states */
+.legend { display: flex; flex-wrap: wrap; gap: 8px 16px; color: var(--muted); font-size: 13px; align-items: center; }
+.legend span { display: inline-flex; gap: 6px; align-items: center; }
+footer { color: var(--muted); font-size: 13px; }
+footer a { color: inherit; }
+.state {
+  background: var(--surface); border: 1px dashed var(--line); border-radius: 6px; padding: 28px; text-align: center; color: var(--muted);
+}
+.state.error { border-color: var(--bad); color: var(--fg); }
+.state.error b { color: var(--bad); }
+.skeleton .seed { height: 52px; background: var(--surface-2); border-color: transparent; animation: pulse 1.2s ease-in-out infinite; }
+@keyframes pulse { 50% { opacity: .5; } }
+@media (prefers-reduced-motion: reduce) { .skeleton .seed { animation: none; } }
+
+@media (max-width: 560px) {
+  .game .full { display: none; }
+  .game .ab { display: block; }
+  .game { padding: 8px; }
+  .hunt .hide-sm { display: none; }
+  .tname small { display: none; }
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="top">
+    <div class="brand">
+      <span class="eyebrow" id="season">NFL Regular Season</span>
+      <h1>Playoff Picture</h1>
+    </div>
+    <div class="status">
+      <span class="week-pill" id="week">Lädt …</span>
+      <span id="updated"></span>
+      <button class="refresh" id="refresh" type="button">Aktualisieren</button>
+    </div>
+  </header>
+
+  <div id="error" class="state error" hidden></div>
+
+  <div class="confs" id="confs">
+    <section class="conf skeleton" data-conf="AFC"><div class="conf-head"><h2>AFC</h2></div><ul class="seeds"><li class="seed"></li><li class="seed"></li><li class="seed"></li><li class="seed"></li><li class="seed"></li><li class="seed"></li><li class="seed"></li></ul></section>
+    <section class="conf skeleton" data-conf="NFC"><div class="conf-head"><h2>NFC</h2></div><ul class="seeds"><li class="seed"></li><li class="seed"></li><li class="seed"></li><li class="seed"></li><li class="seed"></li><li class="seed"></li><li class="seed"></li></ul></section>
+  </div>
+
+  <section class="divs-section" id="divs-section" hidden>
+    <h2>Divisionen</h2>
+    <div class="divs" id="divs"></div>
+  </section>
+
+  <div class="legend">
+    <span><span class="tag div">Div</span> Divisionsführer</span>
+    <span><span class="tag">WC</span> Wild Card</span>
+    <span><span class="tag bye">Bye</span> Freilos in Runde 1 (nur Seed 1)</span>
+    <span><span class="tag clinch">x / y / z / *</span> Playoffs / Division / Bye / Heimrecht gesichert</span>
+    <span><span class="tag elim">e</span> Ausgeschieden</span>
+  </div>
+
+  <footer>
+    Daten: ESPN, bei jedem Öffnen neu geladen. Setzplätze inkl. NFL-Tiebreaker wie von ESPN berechnet.
+    „GB“ = Spiele Rückstand auf Seed 7.
+  </footer>
+</div>
+
+<script>
+(() => {
+  const API = "https://site.api.espn.com/apis/v2/sports/football/nfl/standings?level=3";
+  const SCOREBOARD = "https://site.api.espn.com/apis/site/v2/sports/football/nfl/scoreboard";
+
+  const CLINCH = {
+    "*": { label: "*", title: "Heimrecht in den gesamten Playoffs gesichert" },
+    "z": { label: "z", title: "Freilos (Seed 1) gesichert" },
+    "y": { label: "y", title: "Divisionstitel gesichert" },
+    "x": { label: "x", title: "Playoff-Platz gesichert" },
+    "e": { label: "e", title: "Aus dem Playoff-Rennen ausgeschieden" },
+  };
+
+  const $ = (id) => document.getElementById(id);
+  const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+
+  function parseTeam(entry, conf, div) {
+    const s = {};
+    for (const st of entry.stats || []) s[st.name] = st;
+    const num = (k) => (s[k] && typeof s[k].value === "number" ? s[k].value : Number(s[k]?.displayValue) || 0);
+    const disp = (k) => s[k]?.displayValue ?? "";
+    const t = entry.team;
+    const logo = (t.logos || []).find((l) => (l.rel || []).includes("default"))?.href || t.logos?.[0]?.href || "";
+    const wins = num("wins"), losses = num("losses"), ties = num("ties");
+    return {
+      id: t.id, abbr: t.abbreviation, name: t.displayName, short: t.shortDisplayName || t.name, location: t.location,
+      logo, link: t.links?.[0]?.href || "",
+      conf, div: div.replace(/^(AFC|NFC)\s+/, ""), divFull: div,
+      wins, losses, ties,
+      record: ties ? `${wins}-${losses}-${ties}` : `${wins}-${losses}`,
+      pct: disp("winPercent"),
+      pf: num("pointsFor"), pa: num("pointsAgainst"), diff: num("pointDifferential") || num("differential"),
+      streak: disp("streak"),
+      divRec: disp("vs. Div.") || disp("divisionRecord"),
+      confRec: disp("vs. Conf."),
+      seed: num("playoffSeed") || 99,
+      clincher: (disp("clincher") || "").trim().toLowerCase().replace(/[^xyze*]/g, "") || "",
+    };
+  }
+
+  function parse(data) {
+    const confs = [];
+    for (const c of data.children || []) {
+      const abbr = c.abbreviation || (c.name.includes("American") ? "AFC" : "NFC");
+      const divisions = [];
+      const teams = [];
+      for (const d of c.children || []) {
+        const list = (d.standings?.entries || []).map((e) => parseTeam(e, abbr, d.name));
+        list.sort((a, b) => a.seed - b.seed);
+        divisions.push({ name: d.name, teams: list });
+        teams.push(...list);
+      }
+      teams.sort((a, b) => a.seed - b.seed);
+      const leaders = new Set(divisions.map((d) => d.teams[0]?.id));
+      teams.forEach((t) => (t.isDivLeader = leaders.has(t.id)));
+      confs.push({ abbr, name: c.name, divisions, teams });
+    }
+    confs.sort((a, b) => a.abbr.localeCompare(b.abbr));
+    return { confs, season: data.season?.year || data.seasons?.[0]?.year };
+  }
+
+  const halfGames = (a, b) => ((a.wins - b.wins) + (b.losses - a.losses)) / 2;
+  const fmtGB = (g) => (g === 0 ? "–" : (Number.isInteger(g) ? String(g) : g.toFixed(1)));
+  const signed = (n) => (n > 0 ? `+${n}` : String(n));
+
+  function tagsFor(t) {
+    const out = [];
+    out.push(t.isDivLeader ? `<span class="tag div">Div</span>` : `<span class="tag">WC</span>`);
+    if (t.seed === 1) out.push(`<span class="tag bye">Bye</span>`);
+    if (t.clincher && t.clincher !== "e") {
+      const c = CLINCH[t.clincher];
+      if (c) out.push(`<span class="tag clinch" title="${esc(c.title)}">${esc(c.label)}</span>`);
+    }
+    return out.join("");
+  }
+
+  const img = (t, cls = "logo") => `<img class="${cls}" src="${esc(t.logo)}" alt="" loading="lazy" width="34" height="34">`;
+
+  function renderConf(conf) {
+    const inField = conf.teams.filter((t) => t.seed <= 7);
+    const hunt = conf.teams.filter((t) => t.seed > 7);
+    const seven = inField.find((t) => t.seed === 7);
+    const bySeed = (n) => inField.find((t) => t.seed === n);
+
+    const seedRows = inField.map((t) => `
+      <li class="seed ${t.isDivLeader ? "div" : "wc"}">
+        <span class="num">${t.seed}</span>
+        ${img(t)}
+        <span class="tname"><b>${esc(t.name)}</b><small>${esc(t.div)} · Serie ${esc(t.streak || "–")} · Diff ${esc(signed(t.diff))}</small></span>
+        <span class="rec"><b>${esc(t.record)}</b><span class="tags">${tagsFor(t)}</span></span>
+      </li>`).join("");
+
+    const pairs = [[2, 7], [3, 6], [4, 5]];
+    const games = pairs.map(([h, a]) => {
+      const home = bySeed(h), away = bySeed(a);
+      if (!home || !away) return "";
+      return `<div class="game" aria-label="Wild Card: ${esc(away.name)} bei ${esc(home.name)}">
+        <div class="row"><span>${a}</span><img src="${esc(away.logo)}" alt="" loading="lazy"><b class="full">${esc(away.short)}</b><b class="ab">${esc(away.abbr)}</b></div>
+        <div class="vs">@</div>
+        <div class="row"><span>${h}</span><img src="${esc(home.logo)}" alt="" loading="lazy"><b class="full">${esc(home.short)}</b><b class="ab">${esc(home.abbr)}</b></div>
+      </div>`;
+    }).join("");
+    const one = bySeed(1);
+
+    const huntRows = hunt.map((t) => {
+      const gb = seven ? halfGames(seven, t) : 0;
+      const out = t.clincher === "e";
+      return `<tr class="${out ? "out" : ""}">
+        <td class="n">${t.seed}</td>
+        <td><span class="team">${img(t, "")}<b>${esc(t.name)}</b>${out ? ' <span class="tag elim" title="Ausgeschieden">e</span>' : ""}</span></td>
+        <td class="n"><b>${esc(t.record)}</b></td>
+        <td class="n gb">${fmtGB(Math.max(gb, 0))}</td>
+        <td class="n hide-sm">${esc(t.confRec)}</td>
+        <td class="n hide-sm ${t.diff > 0 ? "pos" : t.diff < 0 ? "neg" : ""}">${esc(signed(t.diff))}</td>
+      </tr>`;
+    }).join("");
+
+    return `<section class="conf" data-conf="${esc(conf.abbr)}">
+      <div class="conf-head"><h2>${esc(conf.abbr)}</h2><span>${esc(conf.name)}</span></div>
+      <div>
+        <h3>Aktuelle Setzliste</h3>
+        <ul class="seeds">${seedRows}</ul>
+      </div>
+      <div>
+        <h3>Wild Card Weekend, wenn heute Saisonende wäre</h3>
+        <div class="bracket">${games}</div>
+        ${one ? `<div class="byebox"><img src="${esc(one.logo)}" alt="" loading="lazy"> <span><b>${esc(one.name)}</b> hat als Seed 1 spielfrei und Heimrecht.</span></div>` : ""}
+      </div>
+      <div>
+        <h3>Im Rennen</h3>
+        <div class="scroll"><table class="hunt">
+          <thead><tr><th class="n">#</th><th>Team</th><th class="n">W-L</th><th class="n" title="Spiele Rückstand auf Seed 7">GB</th><th class="n hide-sm">Conf</th><th class="n hide-sm">Diff</th></tr></thead>
+          <tbody>${huntRows}</tbody>
+        </table></div>
+      </div>
+    </section>`;
+  }
+
+  function renderDivs(confs) {
+    const cards = [];
+    for (const c of confs) for (const d of c.divisions) {
+      const rows = d.teams.map((t) => `<tr>
+        <td><span class="team"><img src="${esc(t.logo)}" alt="" loading="lazy"><b>${esc(t.abbr)}</b></span></td>
+        <td><b>${esc(t.record)}</b></td>
+        <td>${esc(t.divRec)}</td>
+        <td>${esc(t.pf)}–${esc(t.pa)}</td>
+        <td>${esc(t.streak || "–")}</td>
+        <td><span class="sd" title="Conference-Setzplatz">${t.seed <= 7 ? t.seed : ""}</span></td>
+      </tr>`).join("");
+      cards.push(`<div class="div-card" data-conf="${esc(c.abbr)}">
+        <h4>${esc(d.name)}</h4>
+        <div class="scroll"><table><thead><tr><th>Team</th><th>W-L</th><th>Div</th><th>PF–PA</th><th>Serie</th><th title="Setzplatz">#</th></tr></thead><tbody>${rows}</tbody></table></div>
+      </div>`);
+    }
+    return cards.join("");
+  }
+
+  async function loadWeek() {
+    try {
+      const r = await fetch(SCOREBOARD, { cache: "no-store" });
+      if (!r.ok) return null;
+      const d = await r.json();
+      const n = d.week?.number;
+      const type = d.season?.type;
+      const events = d.events || [];
+      const done = events.length && events.every((e) => e.status?.type?.completed);
+      const live = events.some((e) => e.status?.type?.state === "in");
+      if (type === 3) return "Playoffs laufen";
+      if (type !== 2 || !n) return null;
+      if (done) return `Stand nach Woche ${n}`;
+      if (live) return `Woche ${n} · Spiele laufen`;
+      return `Woche ${n}`;
+    } catch { return null; }
+  }
+
+  let loading = false;
+  let lastLoad = 0;
+  async function load() {
+    if (loading) return;
+    loading = true;
+    const btn = $("refresh");
+    btn.disabled = true; btn.textContent = "Lädt …";
+    $("error").hidden = true;
+    try {
+      const [res, weekLabel] = await Promise.all([fetch(API, { cache: "no-store" }), loadWeek()]);
+      if (!res.ok) throw new Error(`ESPN antwortet mit Status ${res.status}`);
+      const parsed = parse(await res.json());
+      if (!parsed.confs.length) throw new Error("ESPN hat keine Tabellen geliefert");
+      $("confs").innerHTML = parsed.confs.map(renderConf).join("");
+      $("divs").innerHTML = renderDivs(parsed.confs);
+      $("divs-section").hidden = false;
+      $("season").textContent = `NFL Saison ${parsed.season || ""}`.trim();
+      $("week").textContent = weekLabel || "Regular Season";
+      lastLoad = Date.now();
+      $("updated").textContent = "Geladen " + new Date().toLocaleTimeString("de-CH", { hour: "2-digit", minute: "2-digit" });
+    } catch (err) {
+      const el = $("error");
+      el.innerHTML = `<b>Die Tabellen konnten nicht geladen werden.</b><br>${esc(err.message || err)}. Prüfe die Internetverbindung und klicke auf „Aktualisieren“.`;
+      el.hidden = false;
+      $("week").textContent = "Keine Daten";
+    } finally {
+      loading = false;
+      btn.disabled = false; btn.textContent = "Aktualisieren";
+    }
+  }
+
+  $("refresh").addEventListener("click", load);
+  document.addEventListener("visibilitychange", () => {
+    if (document.visibilityState === "visible" && !loading && Date.now() - lastLoad > 60000) load();
+  });
+  load();
+})();
+</script>
+</body>
+</html>
